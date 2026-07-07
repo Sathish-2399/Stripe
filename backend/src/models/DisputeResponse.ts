@@ -6,17 +6,10 @@ export class DisputeResponse {
     dispute_id!: string;
 
     @Property()
-    payment_intent_id?: string;
-
-    @Required()
-    @Property()
     charge_id?: string;
 
     @Property()
     amount!: number;
-
-    @Property()
-    currency!: string;
 
     @Property()
     reason?: string;

@@ -16,25 +16,10 @@ export class BalanceTransaction {
     balance_transaction_id!: string;
 
     @Column()
-    payment_intent_id!: string;
-
-    @Column()
     charge_id!: string;
-
-    @Column({nullable:true})
-    application_fee_id?: string;
 
     @Column("decimal")
     amount!: number;
-
-    @Column("decimal")
-    fee!: number;
-
-    @Column("decimal")
-    net!: number;
-
-    @Column()
-    currency!: string;
 
     @Column()
     type!: string;

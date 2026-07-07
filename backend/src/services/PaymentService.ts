@@ -5,6 +5,7 @@ import { PaymentIntent } from "@/entities/PaymentIntent.js";
 import { Charge } from "@/entities/Charge.js";
 import { BalanceTransaction } from "@/entities/BalanceTransaction.js";
 import { ApplicationFee } from "@/entities/ApplicationFee.js";
+import { Refund } from "@/entities/Refund.js";
 import { PaymentResponse } from "@/models/PaymentResponse.js";
 
 @Injectable()
@@ -14,6 +15,7 @@ export class PaymentService {
     private chargeRepository = AppDataSource.getRepository(Charge);
     private balanceTransactionRepository = AppDataSource.getRepository(BalanceTransaction);
     private applicationFeeRepository = AppDataSource.getRepository(ApplicationFee);
+    private refundRepository = AppDataSource.getRepository(Refund);
 
     async makePayment(paymentLinkId: string): Promise<PaymentResponse> {
 
@@ -50,8 +52,6 @@ export class PaymentService {
         const charge = this.chargeRepository.create({
             charge_id: chargeId,
             payment_intent_id: savedPaymentIntent.payment_intent_id,
-            amount: savedPaymentIntent.amount,
-            currency: savedPaymentIntent.currency,
             status: "succeeded",
             paid: true
         });
@@ -60,13 +60,8 @@ export class PaymentService {
 
         const ApplicationFee = this.applicationFeeRepository.create({
             application_fee_id: ApplicationFeeId,
-            payment_link_id: paymentLink.payment_link_id,
-            payment_intent_id: paymentIntentId,
             charge_id: chargeId,
-            amount: paymentLink.amount,
             fee: fee,
-            net: net,
-            currency: paymentLink.currency,
             status: "succeeded"
         });
 
@@ -74,12 +69,8 @@ export class PaymentService {
 
         const balanceTransaction = this.balanceTransactionRepository.create({
             balance_transaction_id: balanceTransactionId,
-            payment_intent_id: savedPaymentIntent.payment_intent_id,
             charge_id: savedCharge.charge_id,
-            amount: savedCharge.amount,
-            fee: fee,
-            net: net,
-            currency: savedCharge.currency,
+            amount: paymentIntent.amount,
             type: "payment",
             status: "available"
         });
@@ -132,8 +123,6 @@ export class PaymentService {
         return {
             charge_id: charge.charge_id,
             payment_intent_id: charge.payment_intent_id,
-            amount: charge.amount,
-            currency: charge.currency,
             status: charge.status,
             paid: charge.paid,
             created_at: charge.created_at
@@ -152,20 +141,34 @@ export class PaymentService {
 
         return {
             balance_transaction_id: balanceTransaction.balance_transaction_id,
-            payment_intent_id: balanceTransaction.payment_intent_id,
             charge_id: balanceTransaction.charge_id,
             amount: balanceTransaction.amount,
-            fee: balanceTransaction.fee,
-            net: balanceTransaction.net,
-            currency: balanceTransaction.currency,
             type: balanceTransaction.type,
             status: balanceTransaction.status,
             created_at: balanceTransaction.created_at
         };
     }
 
-    async getAllTransaction() {
-        const payment_intent = await this.paymentIntentRepository.find();
-        return payment_intent;
-    }
+    // async getAllTransaction() {
+    //     const payment_intent = await this.paymentIntentRepository.find();
+
+    //     const result : PaymentIntent[] = [];
+
+    //     for(const payment_intents of payment_intent) {
+    //         if(payment_intents.status==="succeeded" || payment_intents.status==="partially_refunded") {
+
+    //             const refund = await this.refundRepository.find({
+    //                 where: {payment_intent_id:payment_intents.payment_intent_id}
+    //             });
+
+    //             const totalRefundAmount = refund.reduce(
+    //                 (total,refund) => total + Number(refund.amount) , 0
+    //             );
+
+    //             payment_intents.refundable_amount
+    //         }
+    //     }
+
+    //     return result;
+    // }
 }

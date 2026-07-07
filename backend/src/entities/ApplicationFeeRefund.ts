@@ -17,14 +17,8 @@ export class ApplicationFeeRefund {
     @Column()
     application_fee_id!: string;
 
-    @Column()
-    refund_id!: string;
-
     @Column("decimal")
     amount!: number;
-
-    @Column()
-    currency!: string;
 
     @Column()
     status!: string;

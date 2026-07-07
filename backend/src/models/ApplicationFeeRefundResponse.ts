@@ -8,13 +8,7 @@ export class ApplicationFeeRefundResponse {
     application_fee_id!: string;
 
     @Property()
-    refund_id!: string;
-
-    @Property()
     amount!: number;
-
-    @Property()
-    currency!: string;
 
     @Property()
     status!: string;

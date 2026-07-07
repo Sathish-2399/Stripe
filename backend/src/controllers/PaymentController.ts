@@ -37,8 +37,8 @@ export class PaymentController {
         return await this.paymentService.getBalanceTransaction(id);
     }
 
-    @Get("/payment-intents")
-    async getAllTransaction() {
-        return await this.paymentService.getAllTransaction();
-    }
+    // @Get("/payment-intents")
+    // async getAllTransaction() {
+    //     return await this.paymentService.getAllTransaction();
+    // }
 }

@@ -20,20 +20,16 @@ export class DisputeService {
 
     async createDispute(request: DisputeRequest): Promise<DisputeResponse> {
 
-        if (!request.payment_intent_id && !request.charge_id) {
-            throw new BadRequest("Either payment_intent_id or charge_id must be provided.");
+        const payment_intent_id = await this.getPaymentIntentId(request.charge_id);
+
+        const payment_intent = await this.paymentIntentRepository.findOne({where: { payment_intent_id: payment_intent_id }});
+
+        if(!payment_intent){
+            throw new Error("Invalid payment intent id is not valid");
         }
 
-        const payment_intent_id = !request.payment_intent_id && request.charge_id
-            ? await this.getPaymentIntentId(request.charge_id)
-            : request.payment_intent_id;
-
-        const charge_id = !request.charge_id && request.payment_intent_id 
-            ? await this.getChargeId(request.payment_intent_id)
-            : request.charge_id;
-
         const disputes = await this.disputeRepository.findOne({
-            where: {charge_id: charge_id}
+            where: {charge_id: request.charge_id}
         });
 
         if(disputes){
@@ -41,27 +37,17 @@ export class DisputeService {
         }
 
         const refund = await this.refundRepository.findOne({
-            where: {payment_intent_id:payment_intent_id}
+            where: {charge_id: request.charge_id}
         });
 
         if(refund){
             throw new Error("Already for this transaction arise the refund");
         }
-
-        const payment_intent = await this.paymentIntentRepository.findOne({
-            where: {payment_intent_id: payment_intent_id}
-        });
-
-        if(!payment_intent) {
-            throw new Error("Payment intent id is not present in the db");
-        }
         
         const dispute = this.disputeRepository.create({
             dispute_id: `dp_${Date.now()}`,
-            payment_intent_id: payment_intent_id,
-            charge_id: charge_id,
+            charge_id: request.charge_id,
             amount: payment_intent?.amount,
-            currency: payment_intent?.currency,
             reason: request.reason,
             evidence: request.evidence,
             status: "needs_response"
@@ -69,21 +55,15 @@ export class DisputeService {
 
         const savedDispute = await this.disputeRepository.save(dispute);
 
-        payment_intent.status = "disputed"
-        await this.paymentIntentRepository.save(payment_intent);
 
         const balance_transaction = await this.balanceTransactionRepository.findOne({
-            where: {payment_intent_id: payment_intent_id, type: "payment"},
+            where: {charge_id: request.charge_id, type: "payment"},
         });
 
         const balanceTransaction = this.balanceTransactionRepository.create({
             balance_transaction_id: `txn_${Date.now()}`,
-            payment_intent_id: payment_intent_id,
             charge_id: balance_transaction?.charge_id,
             amount: -balance_transaction?.amount!,
-            fee: 0,
-            net: -balance_transaction?.amount!,
-            currency: balance_transaction?.currency,
             type: "dispute",
             status: "available"
         });
@@ -92,10 +72,8 @@ export class DisputeService {
 
         return {
             dispute_id: savedDispute.dispute_id,
-            payment_intent_id: savedDispute.payment_intent_id,
             charge_id: savedDispute.charge_id,
             amount: savedDispute.amount,
-            currency: savedDispute.currency,
             reason: savedDispute.reason,
             evidence: savedDispute.evidence,
             status: savedDispute.status,
@@ -115,10 +93,8 @@ export class DisputeService {
 
         return {
             dispute_id: dispute.dispute_id,
-            payment_intent_id: dispute.payment_intent_id,
             charge_id: dispute.charge_id,
             amount: dispute.amount,
-            currency: dispute.currency,
             reason: dispute.reason,
             evidence: dispute.evidence,
             status: dispute.status,
@@ -148,5 +124,15 @@ export class DisputeService {
         }
 
         return charge?.charge_id;
+    }
+
+    async getAllDisputes(){
+        const dispute = await this.disputeRepository.find();
+
+        if(!dispute){
+            throw new Error("No dispute is exist");
+        }
+
+        return dispute;
     }
 }

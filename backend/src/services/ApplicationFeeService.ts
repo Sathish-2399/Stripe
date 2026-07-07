@@ -18,12 +18,8 @@ export class ApplicationFeeService {
 
         return {
             application_fee_id: id,
-            payment_intent_id: applicationFee.payment_intent_id,
             charge_id: applicationFee.charge_id,
-            amount: applicationFee.amount,
             fee: applicationFee.fee,
-            net: applicationFee.net,
-            currency: applicationFee.currency,
             status: applicationFee.status,
             created_at: applicationFee.created_at
         }

@@ -22,4 +22,9 @@ export class RefundController{
         return await this.refundService.getRefundById(id);
     }
 
+    @Get("/refund/all")
+    async getAllRefunds(){
+        return await this.refundService.getAllRefunds();
+    }
+
 }

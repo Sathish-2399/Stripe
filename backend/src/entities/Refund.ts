@@ -9,10 +9,7 @@ export class Refund {
     refund_id!: string;
 
     @Column()
-    payment_intent_id!: string;
-
-    @Column({ nullable: true })
-    charge_id!: string;
+    charge_id?: string;
 
     @Column("decimal")
     amount?: number;

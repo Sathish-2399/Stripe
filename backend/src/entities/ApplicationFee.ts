@@ -15,25 +15,10 @@ export class ApplicationFee {
     application_fee_id!: string;
 
     @Column()
-    payment_link_id!: string;
-
-    @Column()
-    payment_intent_id!: string;
-
-    @Column()
     charge_id!: string;
 
     @Column("decimal")
-    amount!: number;
-
-    @Column("decimal")
     fee!: number;
-
-    @Column("decimal")
-    net!: number;
-
-    @Column()
-    currency!: string;
 
     @Column()
     status!: string;

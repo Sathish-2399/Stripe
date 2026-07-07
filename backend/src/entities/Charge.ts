@@ -17,12 +17,6 @@ export class Charge {
     @Column()
     payment_intent_id!: string;
 
-    @Column("decimal")
-    amount!: number;
-
-    @Column()
-    currency!: string;
-
     @Column()
     status!: string;
 

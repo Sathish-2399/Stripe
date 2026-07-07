@@ -6,13 +6,7 @@ export class RefundResponse {
     refund_id!: string;
 
     @Property()
-    payment_intent_id?: string;
-
-    @Property()
     charge_id?: string;
-
-    @Property()
-    application_fee_refund_id?: string;
 
     @Property()
     amount?: number;

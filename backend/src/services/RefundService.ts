@@ -24,26 +24,16 @@ export class RefundService{
 
     async createRefund(request: RefundRequest ): Promise<RefundResponse | null>{
 
-        if(!request.payment_intent_id && !request.charge_id){
-            throw new BadRequest("Either payment_intent_id or charge_id is need to be provided");
-        }
-
-        const payment_intent_id = !request.payment_intent_id && request.charge_id
-            ? await this.getPaymentIntentId(request.charge_id)
-            : request.payment_intent_id;
-
-        const charge_id = !request.charge_id && request.payment_intent_id 
-            ? await this.getChargeId(request.payment_intent_id)
-            : request.charge_id;
+        const payment_intent_id = await this.getPaymentIntentId(request.charge_id);
         
         const payment_intent = await this.paymentIntentRepository.findOne({where: { payment_intent_id: payment_intent_id }});
-       // const charge = await this.chargeRepository.findOne({ where: {charge_id: charge_id} });
-        
-       if(!payment_intent || !charge_id){
-            throw new Error("Payment intent id or charge id is not present in DB");
-       }
+
+        if(!payment_intent){
+            throw new Error("Invalid payment intent id is not valid");
+        }
+
         const dispute = await this.disputeRepository.findOne({
-            where: {payment_intent_id: payment_intent_id}
+            where: {charge_id: request.charge_id}
         });
 
         if(dispute){
@@ -51,7 +41,7 @@ export class RefundService{
         }
 
         const refunds = await this.refundRepository.find({
-            where: {payment_intent_id: payment_intent?.payment_intent_id}
+            where: {charge_id: request.charge_id}
         });
 
         const totalRefundAmount = refunds.reduce(
@@ -74,8 +64,7 @@ export class RefundService{
 
         const refund = this.refundRepository.create({
             refund_id: refund_id,
-            payment_intent_id: payment_intent_id ,
-            charge_id: charge_id ,
+            charge_id: request.charge_id ,
             amount: request.amount ?? refundAmount,
             reason: request.reason,
             status: "succeeded"
@@ -86,46 +75,28 @@ export class RefundService{
         if(savedRefund === undefined) {
             throw new Error("Refund is not exist");
         }
-
-        const refundedAmount = totalRefundAmount + savedRefund.amount! ; 
-
-        if(refundedAmount < payment_intent.amount!){
-            payment_intent.status = "partially_refunded";
-        }
-        else{
-            payment_intent.status = "refunded";
-        }
-
-        await this.paymentIntentRepository.save(payment_intent);
         
         const application_fee = await this.applicationFeeRepository.findOne({
-            where: {payment_intent_id: payment_intent_id}
+            where: {charge_id:request.charge_id}
         });
-        
+
+        if(!application_fee){
+            throw new Error("Application fee is not exist");
+        }
         
         const applicationFeeRefund = this.applicationFeeRefundRepository.create({
             application_fee_refund_id: `afr_${Date.now()}`,
             application_fee_id: application_fee?.application_fee_id,
-            refund_id: refund_id,
-            amount: application_fee?.fee,
-            currency: application_fee?.currency,
+            amount: application_fee.fee! * 0.10,
             status: "succeeded"
         });
 
         const savedApplicationFeeRefund = await this.applicationFeeRefundRepository.save(applicationFeeRefund);
 
-        const balance_transaction = await this.balanceTransactionRepository.findOne({
-            where: {payment_intent_id: payment_intent_id, type: "payment"},
-        });
-
         const balanceTransaction = this.balanceTransactionRepository.create({
             balance_transaction_id: `txn_${Date.now()}`,
-            payment_intent_id: savedRefund.payment_intent_id,
             charge_id: savedRefund.charge_id,
             amount: -savedRefund.amount!,
-            fee: 0,
-            net: -savedRefund.amount!,
-            currency: balance_transaction?.currency,
             type: "refund",
             status: "available"
         });
@@ -134,9 +105,7 @@ export class RefundService{
 
         return {
             refund_id: savedRefund.refund_id,
-            payment_intent_id: savedRefund.payment_intent_id,
             charge_id: savedRefund.charge_id,
-            application_fee_refund_id: savedApplicationFeeRefund.application_fee_refund_id,
             amount: savedRefund.amount,
             reason: savedRefund.reason,
             status: savedRefund.status,
@@ -156,7 +125,6 @@ export class RefundService{
 
         return {
             refund_id: refund.refund_id,
-            payment_intent_id: refund.payment_intent_id,
             charge_id: refund.charge_id,
             amount: refund.amount,
             reason: refund.reason,
@@ -187,6 +155,16 @@ export class RefundService{
         }
 
         return charge?.charge_id;
+    }
+
+    async getAllRefunds() {
+        const refund = await this.refundRepository.find();
+
+        if(!refund) {
+            throw new Error("Refund is not exist");
+        }
+
+        return refund;
     }
 }
 

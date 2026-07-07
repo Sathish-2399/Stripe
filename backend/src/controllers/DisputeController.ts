@@ -24,4 +24,9 @@ export class DisputeController {
         return await this.disputeService.getDisputeById(id);
     }
 
+    @Get("/dispute/all")
+    async getAllDisputes(){
+        return await this.disputeService.getAllDisputes();
+    }
+
 }

@@ -19,9 +19,7 @@ export class ApplicationFeeRefundService{
         return {
             application_fee_refund_id: id,
             application_fee_id: applicationFeeRefund.application_fee_id,
-            refund_id: applicationFeeRefund.refund_id,
             amount: applicationFeeRefund.amount,
-            currency: applicationFeeRefund.currency,
             status: applicationFeeRefund.status,
             created_at: applicationFeeRefund.created_at
         };
