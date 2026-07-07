@@ -41,8 +41,12 @@ export class DisputeService {
         }
 
         const refund = await this.refundRepository.findOne({
-            
-        })
+            where: {payment_intent_id:payment_intent_id}
+        });
+
+        if(refund){
+            throw new Error("Already for this transaction arise the refund");
+        }
 
         const payment_intent = await this.paymentIntentRepository.findOne({
             where: {payment_intent_id: payment_intent_id}

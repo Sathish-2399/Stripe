@@ -56,12 +56,20 @@ export class RefundService{
         );
 
         if(request.amount) {
-            if(payment_intent && request.amount+totalRefundAmount > payment_intent.amount) {
+            if(payment_intent && request.amount+totalRefundAmount >= payment_intent.amount) {
                 throw new Error("Refund amount should be less than transaction amount");
             }
         }
 
         const refundAmount = request.amount ?? payment_intent?.amount;
+
+        if(refundAmount !== undefined)
+        {
+            if(totalRefundAmount >= refundAmount){
+                throw new Error("Refund amount should be less than the amount or already refund is rised for this transaction");
+            }
+        }
+
         const refund_id = `re_${Date.now()}`;
 
         const refund = this.refundRepository.create({
