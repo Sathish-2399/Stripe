@@ -51,6 +51,10 @@ export class DisputeService {
         const payment_intent = await this.paymentIntentRepository.findOne({
             where: {payment_intent_id: payment_intent_id}
         });
+
+        if(!payment_intent) {
+            throw new Error("Payment intent id is not present in the db");
+        }
         
         const dispute = this.disputeRepository.create({
             dispute_id: `dp_${Date.now()}`,
@@ -64,6 +68,9 @@ export class DisputeService {
         });
 
         const savedDispute = await this.disputeRepository.save(dispute);
+
+        payment_intent.status = "disputed"
+        await this.paymentIntentRepository.save(payment_intent);
 
         const balance_transaction = await this.balanceTransactionRepository.findOne({
             where: {payment_intent_id: payment_intent_id, type: "payment"},

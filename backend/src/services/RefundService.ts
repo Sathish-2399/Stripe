@@ -39,6 +39,9 @@ export class RefundService{
         const payment_intent = await this.paymentIntentRepository.findOne({where: { payment_intent_id: payment_intent_id }});
        // const charge = await this.chargeRepository.findOne({ where: {charge_id: charge_id} });
         
+       if(!payment_intent || !charge_id){
+            throw new Error("Payment intent id or charge id is not present in DB");
+       }
         const dispute = await this.disputeRepository.findOne({
             where: {payment_intent_id: payment_intent_id}
         });
@@ -61,13 +64,10 @@ export class RefundService{
             }
         }
 
-        const refundAmount = request.amount ?? payment_intent?.amount;
+        const refundAmount = request.amount ?? payment_intent.amount;
 
-        if(refundAmount !== undefined)
-        {
-            if(totalRefundAmount >= refundAmount){
-                throw new Error("Refund amount should be less than the amount or already refund is rised for this transaction");
-            }
+        if(totalRefundAmount + refundAmount > payment_intent.amount){
+            throw new Error("Refund amount should be less than the amount or already refund is rised for this transaction");
         }
 
         const refund_id = `re_${Date.now()}`;
@@ -83,6 +83,21 @@ export class RefundService{
 
         const savedRefund = await this.refundRepository.save(refund);
 
+        if(savedRefund === undefined) {
+            throw new Error("Refund is not exist");
+        }
+
+        const refundedAmount = totalRefundAmount + savedRefund.amount! ; 
+
+        if(refundedAmount < payment_intent.amount!){
+            payment_intent.status = "partially_refunded";
+        }
+        else{
+            payment_intent.status = "refunded";
+        }
+
+        await this.paymentIntentRepository.save(payment_intent);
+        
         const application_fee = await this.applicationFeeRepository.findOne({
             where: {payment_intent_id: payment_intent_id}
         });
