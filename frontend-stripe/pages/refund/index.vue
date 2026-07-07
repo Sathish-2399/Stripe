@@ -17,6 +17,18 @@
         <button>Get Refund</button>
       </NuxtLink>
     </div>
+
+    <div class="card">
+      <h3>All Refunds</h3>
+      <p>View all refunds created in the system.</p>
+      <NuxtLink to="/refund/all">
+        <button>View Refunds</button>
+      </NuxtLink>
+    </div>
+
+    <NuxtLink to="/">
+      Back Home
+    </NuxtLink>
   </div>
 </template>
 

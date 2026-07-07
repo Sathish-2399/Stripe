@@ -1,30 +1,32 @@
 <template>
   <div class="container">
-    <h1>Stripe API Demo</h1>
+    <h1>Payment Link</h1>
 
     <div class="card">
-      <h3>Refund</h3>
-      <p>Create full or partial refunds and view refund details.</p>
-      <NuxtLink to="/refund">
-        <button>Open Refund</button>
+      <h3>Create Payment Link</h3>
+      <p>Create a payment link for a product.</p>
+      <NuxtLink to="/payment-link/create">
+        <button>Create Link</button>
       </NuxtLink>
     </div>
 
     <div class="card">
-      <h3>Dispute</h3>
-      <p>Create full disputes, partial disputes, and view dispute details.</p>
-      <NuxtLink to="/dispute">
-        <button>Open Dispute</button>
+      <h3>Get Payment Link</h3>
+      <p>Retrieve payment link details by Payment Link ID.</p>
+      <NuxtLink to="/payment-link/get">
+        <button>Get Link</button>
       </NuxtLink>
     </div>
 
     <div class="card">
-      <h3>Payment Link</h3>
-      <p>Create payment links and make test payments for refund or dispute flows.</p>
-      <NuxtLink to="/payment-link">
-        <button>Open Payment Link</button>
+      <h3>Make Payment</h3>
+      <p>Make a test payment using a Payment Link ID.</p>
+      <NuxtLink to="/payment-link/pay">
+        <button>Make Payment</button>
       </NuxtLink>
     </div>
+
+    <NuxtLink to="/">Back Home</NuxtLink>
   </div>
 </template>
 

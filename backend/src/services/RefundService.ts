@@ -48,16 +48,15 @@ export class RefundService{
             (total,refund) => total + Number(refund.amount), 0
         );
 
-        if(request.amount) {
-            if(payment_intent && request.amount+totalRefundAmount >= payment_intent.amount) {
-                throw new Error("Refund amount should be less than transaction amount");
-            }
+        if(request.amount !== undefined && request.amount <= 0) {
+            throw new Error("Refund amount should be greater than zero");
         }
 
-        const refundAmount = request.amount ?? payment_intent.amount;
+        const refundAmount = Number(request.amount ?? payment_intent.amount);
+        const paymentAmount = Number(payment_intent.amount);
 
-        if(totalRefundAmount + refundAmount > payment_intent.amount){
-            throw new Error("Refund amount should be less than the amount or already refund is rised for this transaction");
+        if(totalRefundAmount + refundAmount > paymentAmount){
+            throw new Error("Refund amount should be less than or equal to the remaining refundable amount");
         }
 
         const refund_id = `re_${Date.now()}`;
@@ -65,7 +64,7 @@ export class RefundService{
         const refund = this.refundRepository.create({
             refund_id: refund_id,
             charge_id: request.charge_id ,
-            amount: request.amount ?? refundAmount,
+            amount: refundAmount,
             reason: request.reason,
             status: "succeeded"
         });
@@ -87,7 +86,7 @@ export class RefundService{
         const applicationFeeRefund = this.applicationFeeRefundRepository.create({
             application_fee_refund_id: `afr_${Date.now()}`,
             application_fee_id: application_fee?.application_fee_id,
-            amount: application_fee.fee! * 0.10,
+            amount: Number(savedRefund.amount) * 0.10,
             status: "succeeded"
         });
 
@@ -102,6 +101,12 @@ export class RefundService{
         });
 
         await this.balanceTransactionRepository.save(balanceTransaction);
+
+        payment_intent.status = totalRefundAmount + refundAmount === paymentAmount
+            ? "refunded"
+            : "partially_refunded";
+
+        await this.paymentIntentRepository.save(payment_intent);
 
         return {
             refund_id: savedRefund.refund_id,

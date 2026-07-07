@@ -5,8 +5,6 @@ interface PaymentIntent {
   amount: number
   currency: string
   status: string
-  refundable_amount: number
-  total_refunded: number
 }
 
 const API_BASE = "http://localhost:8083"
@@ -16,6 +14,7 @@ const error = ref("")
 const processing = ref<string | null>(null)
 const amounts = ref<Record<string, string>>({})
 const reasons = ref<Record<string, string>>({})
+const evidence = ref<Record<string, string>>({})
 
 const loadTransactions = async () => {
   loading.value = true
@@ -23,11 +22,9 @@ const loadTransactions = async () => {
 
   try {
     const data = await $fetch<PaymentIntent[]>(`${API_BASE}/pay/payment-intents`)
-
     transactions.value = data.filter(
-      transaction => Boolean(transaction.charge_id) && transaction.refundable_amount > 0
+      transaction => Boolean(transaction.charge_id) && transaction.status !== "refunded"
     )
-
   } catch (err: any) {
     error.value = err.data?.message || err.message
   } finally {
@@ -35,46 +32,42 @@ const loadTransactions = async () => {
   }
 }
 
-const createRefund = async (transaction: PaymentIntent) => {
+const createPartialDispute = async (transaction: PaymentIntent) => {
   if (!transaction.charge_id) {
     alert("Charge ID is missing for this transaction")
     return
   }
 
-  const amountValue = amounts.value[transaction.charge_id]
-  const amount = amountValue ? Number(amountValue) : undefined
+  const amount = Number(amounts.value[transaction.charge_id])
 
-  if (amount !== undefined && (Number.isNaN(amount) || amount <= 0)) {
-    alert("Refund amount should be greater than zero")
+  if (Number.isNaN(amount) || amount <= 0) {
+    alert("Dispute amount should be greater than zero")
     return
   }
 
-  if (amount !== undefined && amount > transaction.refundable_amount) {
-    alert("Refund amount should be less than or equal to refundable amount")
+  if (amount > transaction.amount) {
+    alert("Dispute amount should be less than or equal to transaction amount")
     return
   }
 
   processing.value = transaction.charge_id
 
   try {
-    const result = await $fetch<any>(
-      `${API_BASE}/create/refund`,
-      {
-        method: "POST",
-        body: {
-          charge_id: transaction.charge_id,
-          amount,
-          reason: reasons.value[transaction.charge_id] || undefined
-        }
+    const result = await $fetch<any>(`${API_BASE}/create/dispute`, {
+      method: "POST",
+      body: {
+        charge_id: transaction.charge_id,
+        amount,
+        currency: transaction.currency,
+        reason: reasons.value[transaction.charge_id] || undefined,
+        evidence: evidence.value[transaction.charge_id] || undefined
       }
-    )
+    })
 
-    alert(
-      `Refund Created Successfully\n\nRefund ID: ${result.refund_id}`
-    )
-
+    alert(`Partial Dispute Created Successfully\n\nDispute ID: ${result.dispute_id}`)
     amounts.value[transaction.charge_id] = ""
     reasons.value[transaction.charge_id] = ""
+    evidence.value[transaction.charge_id] = ""
     await loadTransactions()
   } catch (err: any) {
     alert(err.data?.message || err.message)
@@ -83,29 +76,21 @@ const createRefund = async (transaction: PaymentIntent) => {
   }
 }
 
-onMounted(() => {
-  loadTransactions()
-})
+onMounted(loadTransactions)
 </script>
 
 <template>
   <div class="container">
-    <h1>Create Refund</h1>
+    <h1>Create Partial Dispute</h1>
 
     <p v-if="loading">Loading transactions...</p>
-
     <p
       v-if="error"
       class="error"
     >
       {{ error }}
     </p>
-
-    <p
-      v-if="!loading && transactions.length === 0"
-    >
-      No transactions found.
-    </p>
+    <p v-if="!loading && transactions.length === 0">No transactions found.</p>
 
     <table v-if="transactions.length">
       <thead>
@@ -113,15 +98,13 @@ onMounted(() => {
           <th>Payment Intent ID</th>
           <th>Charge ID</th>
           <th>Amount</th>
-          <th>Refundable</th>
           <th>Currency</th>
-          <th>Status</th>
-          <th>Refund Amount</th>
+          <th>Partial Amount</th>
           <th>Reason</th>
+          <th>Evidence</th>
           <th>Action</th>
         </tr>
       </thead>
-
       <tbody>
         <tr
           v-for="transaction in transactions"
@@ -130,17 +113,15 @@ onMounted(() => {
           <td>{{ transaction.payment_intent_id }}</td>
           <td>{{ transaction.charge_id }}</td>
           <td>{{ transaction.amount }}</td>
-          <td>{{ transaction.refundable_amount }}</td>
           <td>{{ transaction.currency }}</td>
-          <td>{{ transaction.status }}</td>
           <td>
             <input
               v-if="transaction.charge_id"
               v-model="amounts[transaction.charge_id]"
               type="number"
               min="1"
-              :max="transaction.refundable_amount"
-              placeholder="Full if empty"
+              :max="transaction.amount"
+              placeholder="required"
             >
           </td>
           <td>
@@ -151,17 +132,20 @@ onMounted(() => {
               placeholder="optional"
             >
           </td>
-
+          <td>
+            <input
+              v-if="transaction.charge_id"
+              v-model="evidence[transaction.charge_id]"
+              type="text"
+              placeholder="optional"
+            >
+          </td>
           <td>
             <button
               :disabled="processing === transaction.charge_id"
-              @click="createRefund(transaction)"
+              @click="createPartialDispute(transaction)"
             >
-              {{
-                processing === transaction.charge_id
-                  ? "Processing..."
-                  : "Refund"
-              }}
+              {{ processing === transaction.charge_id ? "Processing..." : "Dispute" }}
             </button>
           </td>
         </tr>
@@ -169,56 +153,45 @@ onMounted(() => {
     </table>
 
     <br>
-
-    <NuxtLink to="/refund">
-      ← Back
-    </NuxtLink>
+    <NuxtLink to="/dispute">Back</NuxtLink>
   </div>
 </template>
 
 <style scoped>
 .container {
-  width: 900px;
+  width: 1100px;
   margin: 40px auto;
   font-family: Arial, sans-serif;
 }
-
 h1 {
   margin-bottom: 20px;
 }
-
 table {
   width: 100%;
   border-collapse: collapse;
 }
-
 th,
 td {
   border: 1px solid #ddd;
   padding: 12px;
   text-align: left;
 }
-
 th {
   background-color: #f2f2f2;
 }
-
-button {
-  padding: 8px 16px;
-  cursor: pointer;
-}
-
 input {
   width: 130px;
   padding: 8px;
   box-sizing: border-box;
 }
-
+button {
+  padding: 8px 16px;
+  cursor: pointer;
+}
 button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
-
 .error {
   color: red;
   margin-bottom: 15px;

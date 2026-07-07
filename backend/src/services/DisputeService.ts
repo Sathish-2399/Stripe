@@ -44,10 +44,25 @@ export class DisputeService {
             throw new Error("Already for this transaction arise the refund");
         }
         
+        const disputeAmount = Number(request.amount ?? payment_intent.amount);
+        const paymentAmount = Number(payment_intent.amount);
+
+        if(disputeAmount <= 0) {
+            throw new Error("Dispute amount should be greater than zero");
+        }
+
+        if(disputeAmount > paymentAmount) {
+            throw new Error("Dispute amount should be less than or equal to the transaction amount");
+        }
+
+        if(request.currency && request.currency !== payment_intent.currency) {
+            throw new Error("Dispute currency should match the transaction currency");
+        }
+
         const dispute = this.disputeRepository.create({
             dispute_id: `dp_${Date.now()}`,
             charge_id: request.charge_id,
-            amount: payment_intent?.amount,
+            amount: disputeAmount,
             reason: request.reason,
             evidence: request.evidence,
             status: "needs_response"
@@ -63,7 +78,7 @@ export class DisputeService {
         const balanceTransaction = this.balanceTransactionRepository.create({
             balance_transaction_id: `txn_${Date.now()}`,
             charge_id: balance_transaction?.charge_id,
-            amount: -balance_transaction?.amount!,
+            amount: -disputeAmount,
             type: "dispute",
             status: "available"
         });

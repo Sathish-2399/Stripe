@@ -149,26 +149,42 @@ export class PaymentService {
         };
     }
 
-    // async getAllTransaction() {
-    //     const payment_intent = await this.paymentIntentRepository.find();
+    async getAllTransaction() {
+        const paymentIntents = await this.paymentIntentRepository.find({
+            order: { created_at: "DESC" }
+        });
 
-    //     const result : PaymentIntent[] = [];
+        const result = [];
 
-    //     for(const payment_intents of payment_intent) {
-    //         if(payment_intents.status==="succeeded" || payment_intents.status==="partially_refunded") {
+        for (const paymentIntent of paymentIntents) {
+            const charge = await this.chargeRepository.findOne({
+                where: { payment_intent_id: paymentIntent.payment_intent_id }
+            });
 
-    //             const refund = await this.refundRepository.find({
-    //                 where: {payment_intent_id:payment_intents.payment_intent_id}
-    //             });
+            const refunds = charge
+                ? await this.refundRepository.find({
+                    where: { charge_id: charge.charge_id }
+                })
+                : [];
 
-    //             const totalRefundAmount = refund.reduce(
-    //                 (total,refund) => total + Number(refund.amount) , 0
-    //             );
+            const total_refunded = refunds.reduce(
+                (total, refund) => total + Number(refund.amount ?? 0),
+                0
+            );
 
-    //             payment_intents.refundable_amount
-    //         }
-    //     }
+            result.push({
+                payment_intent_id: paymentIntent.payment_intent_id,
+                charge_id: charge?.charge_id,
+                payment_link_id: paymentIntent.payment_link_id,
+                amount: Number(paymentIntent.amount),
+                currency: paymentIntent.currency,
+                status: paymentIntent.status,
+                refundable_amount: Math.max(Number(paymentIntent.amount) - total_refunded, 0),
+                total_refunded,
+                created_at: paymentIntent.created_at
+            });
+        }
 
-    //     return result;
-    // }
+        return result;
+    }
 }
